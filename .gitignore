@@ -27,6 +27,8 @@ compile_commands.json
 android-build/
 *.apk
 *.aab
+*.jks
+*.keystore
 
 # OS noise
 .DS_Store
