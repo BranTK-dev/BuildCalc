@@ -15,6 +15,13 @@ ApplicationWindow {
     title: "BuildCalc"
     color: pageColor
 
+    onClosing: function(close) {
+        if (stack.depth > 1) {
+            close.accepted = false
+            window.navigateBack()
+        }
+    }
+
     CalculatorEngine {
         id: engine
     }
@@ -24,6 +31,7 @@ ApplicationWindow {
     property string errorMessage: ""
     property string toastMessage: ""
     property string greetingText: greeting()
+    readonly property bool systemDarkTheme: Application.styleHints.colorScheme === Qt.ColorScheme.Dark
     readonly property color pageColor: engine.darkTheme ? "#121713" : "#F4F1EA"
     readonly property color surfaceColor: engine.darkTheme ? "#1B231E" : "#FFFFFF"
     readonly property color softSurfaceColor: engine.darkTheme ? "#202B24" : "#F9FAF7"
@@ -70,6 +78,15 @@ ApplicationWindow {
         onTriggered: window.greetingText = window.greeting()
     }
 
+    Component.onCompleted: engine.setDarkTheme(window.systemDarkTheme)
+
+    Connections {
+        target: Application.styleHints
+        function onColorSchemeChanged() {
+            engine.setDarkTheme(window.systemDarkTheme)
+        }
+    }
+
     function openCalculator(key) {
         currentCalculator = key
         errorMessage = ""
@@ -104,6 +121,102 @@ ApplicationWindow {
         stack.push(resultPage)
     }
 
+    function navigateBack() {
+        toastMessage = ""
+        errorMessage = ""
+        if (stack.depth > 1) {
+            stack.pop()
+            return true
+        }
+        return false
+    }
+
+    function recentTitle() {
+        if (!engine.recent || !engine.recent.title || !engine.recent.headline)
+            return ""
+        if (engine.recent.title === "undefined" || engine.recent.headline === "undefined")
+            return ""
+        return engine.recent.title + ", " + engine.recent.headline
+    }
+
+    function priceLabel(calculator) {
+        var code = engine.currencyCode
+        if (calculator === "paint")
+            return "Optional price per 5L can (" + code + ")"
+        if (calculator === "tiling")
+            return "Optional price per tile (" + code + ")"
+        if (calculator === "flooring")
+            return "Optional price per pack (" + code + ")"
+        if (calculator === "concrete")
+            return "Optional price per 50kg cement bag (" + code + ")"
+        if (calculator === "bricks")
+            return "Optional price per brick (" + code + ")"
+        if (calculator === "plastering")
+            return "Optional price per 50kg cement bag (" + code + ")"
+        if (calculator === "roofing")
+            return "Optional price per sheet (" + code + ")"
+        return "Optional unit price (" + code + ")"
+    }
+
+    function extraPriceLabel(calculator) {
+        var code = engine.currencyCode
+        if (calculator === "concrete")
+            return "Optional sand price per m³ (" + code + ")"
+        if (calculator === "plastering")
+            return "Optional plaster sand price per m³ (" + code + ")"
+        return ""
+    }
+
+    function thirdPriceLabel(calculator) {
+        var code = engine.currencyCode
+        if (calculator === "concrete")
+            return "Optional stone price per m³ (" + code + ")"
+        return ""
+    }
+
+    function instructions(calculator) {
+        if (calculator === "paint")
+            return "Measure the wall width and height, choose the number of coats, then add the price for one 5L paint can if you want a cost estimate."
+        if (calculator === "tiling")
+            return "Measure the surface, enter tile size in millimetres, and add the price for one tile. The result includes a 10% spare allowance."
+        if (calculator === "flooring")
+            return "Measure the room, enter how many square metres one flooring pack covers, and add the price for one pack."
+        if (calculator === "concrete")
+            return "Measure slab length, width, and depth. Add cement bag, sand, and stone prices separately for a fuller material estimate."
+        if (calculator === "bricks")
+            return "Measure wall length and height, then add the price for one brick. The estimate uses a single-skin wall with 5% extra."
+        if (calculator === "plastering")
+            return "Measure wall width and height, confirm plaster thickness, then add cement bag and plaster sand prices if needed."
+        if (calculator === "roofing")
+            return "Enter roof width, sheet length, and effective cover width. Add the price for one roof sheet for the cost."
+        return "Enter the site measurements and optional prices to calculate the buying quantity."
+    }
+
+    function unitScale(unit) {
+        if (unit === "cm")
+            return 0.01
+        if (unit === "mm")
+            return 0.001
+        return 1
+    }
+
+    function coverWidthPlaceholder(unit) {
+        if (unit === "cm")
+            return "76.2"
+        if (unit === "mm")
+            return "762"
+        return "0.762"
+    }
+
+    Shortcut {
+        sequences: [StandardKey.Back]
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            if (!window.navigateBack())
+                Qt.quit()
+        }
+    }
+
     StackView {
         id: stack
         anchors.fill: parent
@@ -116,15 +229,24 @@ ApplicationWindow {
         Page {
             background: Rectangle { color: window.pageColor }
 
-            ColumnLayout {
+            ScrollView {
+                id: homeScroll
                 anchors.fill: parent
                 anchors.leftMargin: 18
                 anchors.rightMargin: 18
                 anchors.topMargin: 18
                 anchors.bottomMargin: 16
-                spacing: 14
+                clip: true
+                contentWidth: availableWidth
+                contentHeight: homeColumn.implicitHeight
+                ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
                 ColumnLayout {
+                    id: homeColumn
+                    width: homeScroll.availableWidth
+                    spacing: 14
+
+                    ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 10
 
@@ -154,9 +276,7 @@ ApplicationWindow {
                         RowLayout {
                             spacing: 8
 
-                            ThemeToggle {
-                                Layout.preferredWidth: 46
-                            }
+                            ThemeToggle {}
 
                             Rectangle {
                                 Layout.preferredWidth: 42
@@ -289,7 +409,7 @@ ApplicationWindow {
                     radius: 8
                     color: window.surfaceColor
                     border.color: window.lineColor
-                    visible: engine.recent && engine.recent.headline
+                    visible: window.recentTitle().length > 0
 
                     RowLayout {
                         anchors.fill: parent
@@ -309,7 +429,7 @@ ApplicationWindow {
 
                             Label {
                                 Layout.fillWidth: true
-                                text: engine.recent.title + ", " + engine.recent.headline
+                                text: window.recentTitle()
                                 color: window.inkColor
                                 elide: Text.ElideRight
                                 font.pixelSize: 16
@@ -372,11 +492,8 @@ ApplicationWindow {
                     }
                 }
 
-                Item {
-                    Layout.fillHeight: true
-                }
-
                 AdBanner {}
+                }
             }
         }
     }
@@ -578,20 +695,24 @@ ApplicationWindow {
             id: inputView
 
             readonly property var meta: window.calculatorMeta(window.currentCalculator)
+            property string measurementUnit: "m"
 
             function runCalculation() {
+                var scale = window.unitScale(measurementUnit)
                 var payload = ({
-                    width: Number(widthField.text),
-                    height: Number(heightField.text),
-                    length: Number(lengthField.text),
-                    depth: Number(depthField.text),
+                    width: Number(widthField.text) * scale,
+                    height: Number(heightField.text) * scale,
+                    length: Number(lengthField.text) * scale,
+                    depth: Number(depthField.text) * scale,
                     coats: coatsControl.currentValue,
-                    tileWidth: Number(tileWidthField.text || 0.3),
-                    tileHeight: Number(tileHeightField.text || 0.3),
+                    tileWidth: Number(tileWidthField.text || 300) / 1000,
+                    tileHeight: Number(tileHeightField.text || 300) / 1000,
                     packCoverage: Number(packField.text || 2.2),
                     thickness: Number(thicknessField.text || 12),
-                    coverWidth: Number(coverWidthField.text || 0.762),
+                    coverWidth: coverWidthField.text.length > 0 ? Number(coverWidthField.text) * scale : 0.762,
                     price: Number(priceField.text),
+                    price2: Number(priceTwoField.text),
+                    price3: Number(priceThreeField.text),
                     currencyCode: engine.currencyCode,
                     currencySymbol: engine.currencySymbol
                 })
@@ -616,6 +737,7 @@ ApplicationWindow {
 
                     ToolButton {
                         text: "<"
+                        Layout.preferredWidth: 42
                         icon.width: 20
                         font.pixelSize: 20
                         onClicked: stack.pop()
@@ -625,28 +747,37 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         text: window.calculatorTitles[window.currentCalculator]
                         color: window.inkColor
-                        font.pixelSize: 20
+                        elide: Text.ElideRight
+                        font.pixelSize: 18
                         font.weight: Font.Bold
                     }
 
                     CountryChip {
-                        Layout.preferredWidth: 96
+                        Layout.preferredWidth: 64
+                        Layout.preferredHeight: 38
+                        compact: true
                     }
 
                     ThemeToggle {
-                        Layout.preferredWidth: 46
+                        Layout.preferredWidth: 64
+                        Layout.preferredHeight: 38
                     }
                 }
             }
 
             ScrollView {
+                id: inputScroll
                 anchors.fill: parent
                 anchors.margins: 20
                 anchors.bottomMargin: 92
                 clip: true
+                contentWidth: availableWidth
+                contentHeight: inputColumn.implicitHeight
+                ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
                 ColumnLayout {
-                    width: parent.width
+                    id: inputColumn
+                    width: inputScroll.availableWidth
                     spacing: 16
 
                     Rectangle {
@@ -654,7 +785,7 @@ ApplicationWindow {
                         radius: 8
                         color: engine.darkTheme ? window.surfaceColor : inputView.meta.tint
                         border.color: engine.darkTheme ? window.lineColor : "transparent"
-                        implicitHeight: 88
+                        implicitHeight: Math.max(92, introColumn.implicitHeight + 28)
 
                         RowLayout {
                             anchors.fill: parent
@@ -677,23 +808,24 @@ ApplicationWindow {
                             }
 
                             ColumnLayout {
+                                id: introColumn
                                 Layout.fillWidth: true
                                 spacing: 2
 
                                 Label {
                                     text: inputView.meta.label
                                     color: window.inkColor
-                                    font.pixelSize: 20
+                                    font.pixelSize: 19
                                     font.weight: Font.Bold
                                 }
 
                                 Label {
                                     Layout.fillWidth: true
-                                    text: "Enter the site measurements and calculate the buying quantity."
+                                    text: window.instructions(window.currentCalculator)
                                     color: window.mutedColor
                                     wrapMode: Text.WordWrap
                                     font.pixelSize: 13
-                                    lineHeight: 0.95
+                                    lineHeight: 1.05
                                 }
                             }
                         }
@@ -714,31 +846,54 @@ ApplicationWindow {
                             anchors.margins: 16
                             spacing: 14
 
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 7
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: "Measurement unit"
+                                    color: window.mutedColor
+                                    font.pixelSize: 14
+                                    font.weight: Font.DemiBold
+                                }
+
+                                UnitSelector {
+                                    Layout.fillWidth: true
+                                    currentUnit: inputView.measurementUnit
+                                    accentColor: inputView.meta.accent
+                                    softSurfaceColor: window.softSurfaceColor
+                                    textColor: window.inkColor
+                                    lineColor: window.lineColor
+                                    onPicked: function(unit) { inputView.measurementUnit = unit }
+                                }
+                            }
+
                             FieldGroup {
                                 id: widthField
                                 label: "Width"
-                                suffix: "m"
+                                suffix: inputView.measurementUnit
                                 visible: window.currentCalculator !== "bricks"
                             }
 
                             FieldGroup {
                                 id: heightField
                                 label: window.currentCalculator === "bricks" ? "Wall height" : "Height"
-                                suffix: "m"
+                                suffix: inputView.measurementUnit
                                 visible: window.currentCalculator === "paint" || window.currentCalculator === "tiling" || window.currentCalculator === "plastering" || window.currentCalculator === "bricks"
                             }
 
                             FieldGroup {
                                 id: lengthField
                                 label: window.currentCalculator === "roofing" ? "Sheet length" : window.currentCalculator === "bricks" ? "Wall length" : "Length"
-                                suffix: "m"
+                                suffix: inputView.measurementUnit
                                 visible: window.currentCalculator === "flooring" || window.currentCalculator === "concrete" || window.currentCalculator === "roofing" || window.currentCalculator === "bricks"
                             }
 
                             FieldGroup {
                                 id: depthField
                                 label: "Depth"
-                                suffix: "m"
+                                suffix: inputView.measurementUnit
                                 visible: window.currentCalculator === "concrete"
                             }
 
@@ -764,14 +919,14 @@ ApplicationWindow {
                                 spacing: 10
                                 visible: window.currentCalculator === "tiling"
 
-                                FieldGroup { id: tileWidthField; Layout.fillWidth: true; label: "Tile width"; suffix: "m"; placeholderText: "0.3" }
-                                FieldGroup { id: tileHeightField; Layout.fillWidth: true; label: "Tile height"; suffix: "m"; placeholderText: "0.3" }
+                                FieldGroup { id: tileWidthField; Layout.fillWidth: true; label: "Tile width"; suffix: "mm"; placeholderText: "300" }
+                                FieldGroup { id: tileHeightField; Layout.fillWidth: true; label: "Tile height"; suffix: "mm"; placeholderText: "300" }
                             }
 
                             FieldGroup {
                                 id: packField
                                 label: "Pack coverage"
-                                suffix: "m2"
+                                suffix: "m²"
                                 placeholderText: "2.2"
                                 visible: window.currentCalculator === "flooring"
                             }
@@ -787,14 +942,26 @@ ApplicationWindow {
                             FieldGroup {
                                 id: coverWidthField
                                 label: "Cover width"
-                                suffix: "m"
-                                placeholderText: "0.762"
+                                suffix: inputView.measurementUnit
+                                placeholderText: window.coverWidthPlaceholder(inputView.measurementUnit)
                                 visible: window.currentCalculator === "roofing"
                             }
 
                             FieldGroup {
                                 id: priceField
-                                label: (window.currentCalculator === "paint" || window.currentCalculator === "tiling" ? "Optional price" : "Optional unit price") + " (" + engine.currencyCode + ")"
+                                label: window.priceLabel(window.currentCalculator)
+                            }
+
+                            FieldGroup {
+                                id: priceTwoField
+                                label: window.extraPriceLabel(window.currentCalculator)
+                                visible: label.length > 0
+                            }
+
+                            FieldGroup {
+                                id: priceThreeField
+                                label: window.thirdPriceLabel(window.currentCalculator)
+                                visible: label.length > 0
                             }
                         }
                     }
@@ -874,9 +1041,18 @@ ApplicationWindow {
                 }
             }
 
-            ColumnLayout {
+            ScrollView {
+                id: resultScroll
                 anchors.fill: parent
                 anchors.margins: 20
+                clip: true
+                contentWidth: availableWidth
+                contentHeight: resultColumn.implicitHeight
+                ScrollBar.vertical.policy: ScrollBar.AsNeeded
+
+                ColumnLayout {
+                id: resultColumn
+                width: resultScroll.availableWidth
                 spacing: 14
 
                 Rectangle {
@@ -1012,7 +1188,7 @@ ApplicationWindow {
                         font.pixelSize: 16
                         font.weight: Font.DemiBold
                     }
-                    onClicked: Qt.openUrlExternally("mailto:?subject=BuildCalc estimate&body=" + encodeURIComponent(engine.shareText(window.currentResult)))
+                    onClicked: Qt.openUrlExternally("mailto:?subject=BuildCalc Material Estimate&body=" + encodeURIComponent(engine.shareText(window.currentResult)))
                 }
 
                 RowLayout {
@@ -1026,12 +1202,12 @@ ApplicationWindow {
                         text: "Copy"
                         background: Rectangle {
                             radius: 8
-                            color: copyButton.down ? window.softSurfaceColor : window.surfaceColor
+                            color: copyButton.down ? Qt.darker(resultView.meta.accent, 1.2) : resultView.meta.accent
                             border.color: resultView.meta.accent
                         }
                         contentItem: Label {
                             text: copyButton.text
-                            color: resultView.meta.accent
+                            color: "#FFFFFF"
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             font.pixelSize: 15
@@ -1050,12 +1226,12 @@ ApplicationWindow {
                         text: "WhatsApp"
                         background: Rectangle {
                             radius: 8
-                            color: whatsappButton.down ? window.softSurfaceColor : window.surfaceColor
+                            color: whatsappButton.down ? Qt.darker(resultView.meta.accent, 1.2) : resultView.meta.accent
                             border.color: resultView.meta.accent
                         }
                         contentItem: Label {
                             text: whatsappButton.text
-                            color: resultView.meta.accent
+                            color: "#FFFFFF"
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             font.pixelSize: 15
@@ -1082,13 +1258,13 @@ ApplicationWindow {
                     text: "New calculation"
                     background: Rectangle {
                         radius: 8
-                        color: newCalculationButton.down ? window.softSurfaceColor : window.surfaceColor
+                        color: newCalculationButton.down ? window.softSurfaceColor : (engine.darkTheme ? "#213528" : window.surfaceColor)
                         border.color: resultView.meta.accent
-                        border.width: 1
+                        border.width: 2
                     }
                     contentItem: Label {
                         text: newCalculationButton.text
-                        color: resultView.meta.accent
+                        color: engine.darkTheme ? "#F3F6F1" : resultView.meta.accent
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         font.pixelSize: 16
@@ -1099,9 +1275,8 @@ ApplicationWindow {
                     }
                 }
 
-                Item { Layout.fillHeight: true }
-
                 AdBanner {}
+                }
             }
         }
     }
@@ -1119,7 +1294,9 @@ ApplicationWindow {
 
         Label {
             id: fieldLabel
+            Layout.fillWidth: true
             color: window.mutedColor
+            wrapMode: Text.WordWrap
             font.pixelSize: 14
             font.weight: Font.DemiBold
         }
@@ -1178,51 +1355,84 @@ ApplicationWindow {
         }
     }
 
-    component AdBanner: Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: 48
-        radius: 8
-        color: engine.darkTheme ? "#22281F" : "#ECE7DA"
-        border.color: engine.darkTheme ? window.lineColor : "#D9D1C0"
+    component UnitSelector: RowLayout {
+        id: unitSelector
 
-        Label {
-            anchors.centerIn: parent
-            text: "Sponsored"
-            color: engine.darkTheme ? window.mutedColor : "#756D60"
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
+        property string currentUnit: "m"
+        property color softSurfaceColor: "#F9FAF7"
+        property color textColor: "#17201A"
+        property color lineColor: "#D3DCD5"
+        property color accentColor: "#2F7D46"
+
+        signal picked(string unit)
+
+        spacing: 8
+
+        Repeater {
+            model: ["m", "cm", "mm"]
+
+            Button {
+                id: unitButton
+                required property string modelData
+
+                Layout.fillWidth: true
+                implicitHeight: 44
+                text: modelData
+                checkable: true
+                checked: unitSelector.currentUnit === modelData
+
+                background: Rectangle {
+                    radius: 8
+                    color: unitButton.checked ? unitSelector.accentColor : unitSelector.softSurfaceColor
+                    border.color: unitButton.checked ? unitSelector.accentColor : unitSelector.lineColor
+                }
+
+                contentItem: Label {
+                    text: unitButton.text
+                    color: unitButton.checked ? "#FFFFFF" : unitSelector.textColor
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                }
+
+                onClicked: {
+                    unitSelector.currentUnit = modelData
+                    unitSelector.picked(modelData)
+                }
+            }
         }
+    }
+
+    component AdBanner: Item {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 0
+        visible: false
     }
 
     component ThemeToggle: Button {
         id: themeButton
 
         implicitHeight: 38
+        implicitWidth: 64
         padding: 0
 
         background: Rectangle {
-            radius: 8
+            radius: 19
             color: engine.darkTheme ? "#263128" : "#FFFFFF"
             border.color: window.lineColor
 
             Rectangle {
-                width: 18
-                height: 18
-                radius: 9
+                width: 30
+                height: 30
+                radius: 15
                 anchors.verticalCenter: parent.verticalCenter
-                x: engine.darkTheme ? parent.width - width - 8 : 8
-                color: engine.darkTheme ? "#E3B64B" : "#2F7D46"
+                x: engine.darkTheme ? parent.width - width - 4 : 4
+                color: window.brandColor
             }
         }
 
-        contentItem: Label {
-            text: engine.darkTheme ? "D" : "L"
-            color: window.inkColor
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            font.pixelSize: 12
-            font.weight: Font.Bold
-        }
+        contentItem: Item {}
 
         onClicked: engine.setDarkTheme(!engine.darkTheme)
     }
@@ -1230,9 +1440,11 @@ ApplicationWindow {
     component CountryChip: Button {
         id: countryChip
 
+        property bool compact: false
         readonly property var meta: window.countryMeta(engine.country)
 
         implicitHeight: 38
+        implicitWidth: compact ? 64 : 96
         padding: 0
 
         background: Rectangle {
@@ -1241,14 +1453,18 @@ ApplicationWindow {
             border.color: countryChip.down ? window.brandColor : window.lineColor
         }
 
-        contentItem: RowLayout {
-            spacing: 6
+        contentItem: Item {
+            anchors.fill: parent
 
             Rectangle {
-                Layout.leftMargin: 8
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 24
+                id: countryBadge
+                width: countryChip.compact ? 44 : 34
+                height: 26
                 radius: 6
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: countryChip.compact ? undefined : parent.left
+                anchors.leftMargin: countryChip.compact ? 0 : 8
+                anchors.horizontalCenter: countryChip.compact ? parent.horizontalCenter : undefined
                 color: window.brandColor
 
                 Label {
@@ -1261,7 +1477,12 @@ ApplicationWindow {
             }
 
             Label {
-                Layout.fillWidth: true
+                anchors.left: countryBadge.right
+                anchors.leftMargin: 6
+                anchors.right: parent.right
+                anchors.rightMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                visible: !countryChip.compact
                 text: countryChip.meta.currencyCode
                 color: window.inkColor
                 elide: Text.ElideRight
@@ -1274,9 +1495,11 @@ ApplicationWindow {
 
         Popup {
             id: countryPopup
-            y: countryChip.height + 6
-            width: Math.min(280, window.width - 40)
-            height: Math.min(360, countryList.contentHeight + 18)
+            parent: Overlay.overlay
+            x: Math.max(12, Math.min(window.width - width - 12, countryChip.mapToItem(parent, 0, 0).x + countryChip.width - width))
+            y: Math.min(window.height - height - 12, countryChip.mapToItem(parent, 0, 0).y + countryChip.height + 8)
+            width: Math.min(320, window.width - 24)
+            height: Math.min(420, window.height - y - 12, countryList.contentHeight + 18)
             modal: true
             focus: true
             closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside

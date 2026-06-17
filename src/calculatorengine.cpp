@@ -245,11 +245,15 @@ QVariantMap CalculatorEngine::calculatePaint(const QVariantMap &inputs) const
     result["ok"] = true;
     result["calculator"] = "paint";
     result["title"] = "Paint calculator";
-    result["headline"] = QString("%1 liters").arg(compactNumber(liters, 1));
-    result["context"] = QString("Covers %1 m2 wall, %2 coat%3").arg(compactNumber(area, 1)).arg(coats).arg(coats == 1 ? "" : "s");
+    result["headline"] = QString("%1 x 5L cans").arg(cans);
+    result["context"] = QString("Approx. %1 liters for %2 m² wall, %3 coat%4")
+                            .arg(compactNumber(liters, 1))
+                            .arg(compactNumber(area, 1))
+                            .arg(coats)
+                            .arg(coats == 1 ? "" : "s");
     result["purchase"] = QString("5L cans needed: %1").arg(cans);
     result["secondary"] = QString("Includes 10% extra for touch-ups and waste.");
-    result["cost"] = price > 0 ? money(liters * price, inputs) : QString();
+    result["cost"] = price > 0 ? money(cans * price, inputs) : QString();
     result["currencyCode"] = inputs.value("currencyCode", QStringLiteral("ZAR")).toString();
     return result;
 }
@@ -275,10 +279,13 @@ QVariantMap CalculatorEngine::calculateTiling(const QVariantMap &inputs) const
     result["calculator"] = "tiling";
     result["title"] = "Tiling calculator";
     result["headline"] = QString("%1 tiles").arg(tiles);
-    result["context"] = QString("Covers %1 m2, including 10% spare").arg(compactNumber(buyArea, 1));
-    result["purchase"] = QString("Tile area to buy: %1 m2").arg(compactNumber(buyArea, 1));
-    result["secondary"] = QString("Based on %1 m x %2 m tiles.").arg(compactNumber(tileWidth, 2), compactNumber(tileHeight, 2));
-    result["cost"] = price > 0 ? money(buyArea * price, inputs) : QString();
+    result["context"] = QString("Covers %1 m², including 10% spare").arg(compactNumber(buyArea, 1));
+    result["purchase"] = QString("Tiles to buy: %1").arg(tiles);
+    result["secondary"] = QString("Covers %1 m², based on %2 m x %3 m tiles.")
+                              .arg(compactNumber(buyArea, 1))
+                              .arg(compactNumber(tileWidth, 2))
+                              .arg(compactNumber(tileHeight, 2));
+    result["cost"] = price > 0 ? money(tiles * price, inputs) : QString();
     result["currencyCode"] = inputs.value("currencyCode", QStringLiteral("ZAR")).toString();
     return result;
 }
@@ -303,9 +310,9 @@ QVariantMap CalculatorEngine::calculateFlooring(const QVariantMap &inputs) const
     result["calculator"] = "flooring";
     result["title"] = "Flooring calculator";
     result["headline"] = QString("%1 packs").arg(packs);
-    result["context"] = QString("Covers %1 m2 floor, including 10% spare").arg(compactNumber(buyArea, 1));
-    result["purchase"] = QString("Flooring to buy: %1 m2").arg(compactNumber(buyArea, 1));
-    result["secondary"] = QString("Pack coverage: %1 m2 each.").arg(compactNumber(packCoverage, 1));
+    result["context"] = QString("Covers %1 m² floor, including 10% spare").arg(compactNumber(buyArea, 1));
+    result["purchase"] = QString("Flooring to buy: %1 m²").arg(compactNumber(buyArea, 1));
+    result["secondary"] = QString("Pack coverage: %1 m² each.").arg(compactNumber(packCoverage, 1));
     result["cost"] = price > 0 ? money(packs * price, inputs) : QString();
     result["currencyCode"] = inputs.value("currencyCode", QStringLiteral("ZAR")).toString();
     return result;
@@ -317,6 +324,8 @@ QVariantMap CalculatorEngine::calculateConcrete(const QVariantMap &inputs) const
     const double width = number(inputs, "width");
     const double depth = number(inputs, "depth");
     const double price = number(inputs, "price");
+    const double sandPrice = number(inputs, "price2");
+    const double stonePrice = number(inputs, "price3");
 
     if (length <= 0 || width <= 0 || depth <= 0) {
         return errorResult("Enter length, width, and depth.");
@@ -332,11 +341,12 @@ QVariantMap CalculatorEngine::calculateConcrete(const QVariantMap &inputs) const
     result["ok"] = true;
     result["calculator"] = "concrete";
     result["title"] = "Concrete calculator";
-    result["headline"] = QString("%1 m3 concrete").arg(compactNumber(wetVolume, 2));
+    result["headline"] = QString("%1 m³ concrete").arg(compactNumber(wetVolume, 2));
     result["context"] = QString("For a %1 m x %2 m x %3 m slab").arg(compactNumber(length, 1), compactNumber(width, 1), compactNumber(depth, 2));
     result["purchase"] = QString("50kg cement bags: %1").arg(cementBags);
-    result["secondary"] = QString("Approx. sand: %1 m3, stone: %2 m3.").arg(compactNumber(sand, 2), compactNumber(stone, 2));
-    result["cost"] = price > 0 ? money(cementBags * price, inputs) : QString();
+    result["secondary"] = QString("Approx. sand: %1 m³, stone: %2 m³.").arg(compactNumber(sand, 2), compactNumber(stone, 2));
+    const double totalCost = (cementBags * price) + (sand * sandPrice) + (stone * stonePrice);
+    result["cost"] = totalCost > 0 ? money(totalCost, inputs) : QString();
     result["currencyCode"] = inputs.value("currencyCode", QStringLiteral("ZAR")).toString();
     return result;
 }
@@ -359,9 +369,9 @@ QVariantMap CalculatorEngine::calculateBricks(const QVariantMap &inputs) const
     result["calculator"] = "bricks";
     result["title"] = "Brick calculator";
     result["headline"] = QString("%1 bricks").arg(bricks);
-    result["context"] = QString("For %1 m2 single-skin wall").arg(compactNumber(area, 1));
+    result["context"] = QString("For %1 m² single-skin wall").arg(compactNumber(area, 1));
     result["purchase"] = QString("Bricks to buy: %1").arg(bricks);
-    result["secondary"] = QString("Uses 50 bricks per m2 plus 5% extra.");
+    result["secondary"] = QString("Uses 50 bricks per m² plus 5% extra.");
     result["cost"] = price > 0 ? money(bricks * price, inputs) : QString();
     result["currencyCode"] = inputs.value("currencyCode", QStringLiteral("ZAR")).toString();
     return result;
@@ -373,6 +383,7 @@ QVariantMap CalculatorEngine::calculatePlastering(const QVariantMap &inputs) con
     const double height = number(inputs, "height");
     const double thicknessMm = number(inputs, "thickness", 12.0);
     const double price = number(inputs, "price");
+    const double sandPrice = number(inputs, "price2");
 
     if (width <= 0 || height <= 0 || thicknessMm <= 0) {
         return errorResult("Enter wall size and plaster thickness.");
@@ -389,10 +400,11 @@ QVariantMap CalculatorEngine::calculatePlastering(const QVariantMap &inputs) con
     result["calculator"] = "plastering";
     result["title"] = "Plastering calculator";
     result["headline"] = QString("%1 cement bags").arg(cementBags);
-    result["context"] = QString("Covers %1 m2 at %2 mm thick").arg(compactNumber(area, 1), compactNumber(thicknessMm, 0));
+    result["context"] = QString("Covers %1 m² at %2 mm thick").arg(compactNumber(area, 1), compactNumber(thicknessMm, 0));
     result["purchase"] = QString("50kg cement bags: %1").arg(cementBags);
-    result["secondary"] = QString("Approx. plaster sand: %1 m3.").arg(compactNumber(sand, 2));
-    result["cost"] = price > 0 ? money(cementBags * price, inputs) : QString();
+    result["secondary"] = QString("Approx. plaster sand: %1 m³.").arg(compactNumber(sand, 2));
+    const double totalCost = (cementBags * price) + (sand * sandPrice);
+    result["cost"] = totalCost > 0 ? money(totalCost, inputs) : QString();
     result["currencyCode"] = inputs.value("currencyCode", QStringLiteral("ZAR")).toString();
     return result;
 }
@@ -416,7 +428,7 @@ QVariantMap CalculatorEngine::calculateRoofing(const QVariantMap &inputs) const
     result["calculator"] = "roofing";
     result["title"] = "Roofing sheet calculator";
     result["headline"] = QString("%1 sheets").arg(sheets);
-    result["context"] = QString("Covers about %1 m2 roof area").arg(compactNumber(roofArea, 1));
+    result["context"] = QString("Covers about %1 m² roof area").arg(compactNumber(roofArea, 1));
     result["purchase"] = QString("Sheet length: %1 m each").arg(compactNumber(slopeLength, 1));
     result["secondary"] = QString("Effective cover width: %1 m.").arg(compactNumber(coverWidth, 3));
     result["cost"] = price > 0 ? money(sheets * price, inputs) : QString();
@@ -492,29 +504,37 @@ QString CalculatorEngine::money(double value, const QVariantMap &inputs)
 QString CalculatorEngine::formatShareText(const QVariantMap &result)
 {
     QStringList lines;
-    lines << QStringLiteral("BuildCalc estimate");
-    lines << QStringLiteral("------------------");
+    lines << QStringLiteral("BuildCalc Material Estimate");
+    lines << QStringLiteral("");
+    lines << QStringLiteral("Hello,");
+    lines << QStringLiteral("");
+    lines << QStringLiteral("Please find the material estimate summary below:");
+    lines << QStringLiteral("");
     lines << QString("Calculator: %1").arg(result.value("title").toString());
-    lines << QString("Result: %1").arg(result.value("headline").toString());
-    lines << QString("Context: %1").arg(result.value("context").toString());
-    lines << QString("Buy: %1").arg(result.value("purchase").toString());
+    lines << QString("Estimated quantity: %1").arg(result.value("headline").toString());
+    lines << QString("Project basis: %1").arg(result.value("context").toString());
+    lines << QString("Recommended purchase: %1").arg(result.value("purchase").toString());
 
     const QString secondary = result.value("secondary").toString();
     if (!secondary.isEmpty()) {
-        lines << QString("Breakdown: %1").arg(secondary);
+        lines << QString("Notes: %1").arg(secondary);
     }
 
     const QString cost = result.value("cost").toString();
     if (!cost.isEmpty()) {
-        lines << cost;
+        lines << QString("Estimated material cost: %1").arg(cost.mid(QStringLiteral("Estimated cost: ").size()));
+    } else {
+        lines << QStringLiteral("Estimated material cost: Not included");
     }
 
     const QString timestamp = result.value("timestamp").toString();
     if (!timestamp.isEmpty()) {
-        lines << QString("Saved: %1").arg(timestamp);
+        lines << QString("Estimate date: %1").arg(timestamp);
     }
 
-    lines << QStringLiteral("------------------");
-    lines << QStringLiteral("Generated with BuildCalc");
+    lines << QStringLiteral("");
+    lines << QStringLiteral("This estimate is intended for planning purposes. Please confirm final measurements, product coverage, pack sizes, and supplier pricing before purchasing materials.");
+    lines << QStringLiteral("");
+    lines << QStringLiteral("Prepared with BuildCalc.");
     return lines.join('\n');
 }

@@ -15,7 +15,7 @@ TextField {
     inputMethodHints: Qt.ImhFormattedNumbersOnly
     font.pixelSize: 17
     color: root.textColor
-    placeholderTextColor: root.mutedColor
+    placeholderTextColor: root.activeFocus ? "transparent" : root.mutedColor
     selectByMouse: true
 
     rightPadding: suffixLabel.visible ? suffixLabel.width + 20 : 12
