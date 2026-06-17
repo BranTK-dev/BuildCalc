@@ -1,0 +1,33 @@
+# Qt Creator / CMake build output
+build/
+.qtcreator/
+CMakeUserPresets.json
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Qt Creator user-local project files
+*.user
+*.user.*
+
+# Binaries and generated objects
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.o
+*.obj
+*.pdb
+
+# Android / Gradle generated files
+.gradle/
+android-build/
+*.apk
+*.aab
+
+# OS noise
+.DS_Store
+Thumbs.db
