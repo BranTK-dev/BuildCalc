@@ -151,19 +151,27 @@ ApplicationWindow {
                             }
                         }
 
-                        Rectangle {
-                            Layout.preferredWidth: 42
-                            Layout.preferredHeight: 42
-                            radius: 8
-                            color: engine.darkTheme ? window.surfaceColor : "#203326"
-                            border.color: engine.darkTheme ? window.lineColor : "transparent"
+                        RowLayout {
+                            spacing: 8
 
-                            Image {
-                                anchors.fill: parent
-                                anchors.margins: 3
-                                source: "qrc:/qt/qml/BuildCalc/assets/app-icon.png"
-                                fillMode: Image.PreserveAspectFit
-                                smooth: true
+                            ThemeToggle {
+                                Layout.preferredWidth: 46
+                            }
+
+                            Rectangle {
+                                Layout.preferredWidth: 42
+                                Layout.preferredHeight: 42
+                                radius: 8
+                                color: engine.darkTheme ? window.surfaceColor : "#203326"
+                                border.color: engine.darkTheme ? window.lineColor : "transparent"
+
+                                Image {
+                                    anchors.fill: parent
+                                    anchors.margins: 3
+                                    source: "qrc:/qt/qml/BuildCalc/assets/app-icon.png"
+                                    fillMode: Image.PreserveAspectFit
+                                    smooth: true
+                                }
                             }
                         }
                     }
